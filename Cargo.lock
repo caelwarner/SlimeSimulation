@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "SlimeSimulation"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,6 +633,15 @@ dependencies = [
  "serde",
  "thiserror",
  "uuid",
+]
+
+[[package]]
+name = "bevy_shader_utils"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ef57b0dc69a230231c973374ab3a413119f269e490ea65aa796932821a3e44c"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -2628,6 +2630,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4614a76b2a8be0058caa9dbbaf66d988527d86d003c11a94fbd335d7661edcef"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "slime_simulation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_shader_utils",
 ]
 
 [[package]]
