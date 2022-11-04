@@ -12,9 +12,9 @@ mod plugin;
 mod pipeline;
 
 const SETTINGS: AppSettings = AppSettings {
-    window_size: (3440, 1440),
-    texture_size: (3440, 1440),
-    num_agents: 1000000,
+    window_size: (1920, 1080),
+    texture_size: (1280, 720),
+    num_agents: 100,
 };
 
 fn main() {
@@ -24,7 +24,7 @@ fn main() {
             title: "Slime Simulation".to_string(),
             width: SETTINGS.window_size.0 as f32,
             height: SETTINGS.window_size.1 as f32,
-            mode: WindowMode::SizedFullscreen,
+            mode: WindowMode::Windowed,
             scale_factor_override: Some(1.0),
             ..default()
         })
@@ -54,6 +54,7 @@ fn setup(mut commands: Commands, output_image: Res<PipelineOutputImage>) {
     commands.spawn_bundle(Camera2dBundle::default());
 }
 
+#[derive(Copy, Clone)]
 struct AppSettings {
     window_size: (u32, u32),
     texture_size: (u32, u32),

@@ -1,14 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::{RenderApp, RenderStage};
 use bevy::render::extract_resource::ExtractResourcePlugin;
+use bevy::render::main_graph::node::CAMERA_DRIVER;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::RenderGraph;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::renderer::RenderDevice;
 
 use crate::pipeline::{MainShaderPipeline, PipelineOutputImage, ShaderPipelineNode};
-use crate::pipeline::fade::FadePipelineContext;
-use crate::pipeline::simulation::SimulationPipelineContext;
 use crate::SETTINGS;
 
 pub struct SlimeSimulationPlugin;
@@ -22,13 +21,6 @@ impl Plugin for SlimeSimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
-            .insert_resource(SimulationPipelineContext {
-                num_agents: SETTINGS.num_agents,
-                texture_size: SETTINGS.texture_size,
-            })
-            .insert_resource(FadePipelineContext {
-                texture_size: SETTINGS.texture_size,
-            })
             .init_resource::<MainShaderPipeline>()
             .add_system_to_stage(
                 RenderStage::Queue,
@@ -42,7 +34,7 @@ impl Plugin for SlimeSimulationPlugin {
         );
         render_graph.add_node_edge(
             "simulation",
-            bevy::render::main_graph::node::CAMERA_DRIVER,
+            CAMERA_DRIVER,
         ).unwrap();
     }
 }
