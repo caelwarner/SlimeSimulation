@@ -1,20 +1,12 @@
 @group(0) @binding(0)
 var texture: texture_storage_2d<rgba8unorm, read_write>;
 
-struct Time {
-    time_since_startup: f32,
-};
-
-@group(0) @binding(1)
-var<uniform> time: Time;
-
 struct Agent {
     position: vec2<f32>,
-    angle: f32,
-    _padding: u32,
+    @align(8) angle: f32,
 }
 
-@group(0) @binding(2)
+@group(0) @binding(1)
 var<storage, read_write> agents: array<Agent>;
 
 fn hash(value: u32) -> u32 {
@@ -30,17 +22,6 @@ fn hash(value: u32) -> u32 {
 
 fn randomFloat(value: u32) -> f32 {
     return f32(hash(value)) / 4294967295.0;
-}
-
-@compute @workgroup_size(16, 1, 1)
-fn init(@builtin(global_invocation_id) id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
-//    agents[id.x].position = vec2<f32>(1280.0 / 2.0, 720.0 / 2.0);
-//    agents[id.x].angle = randomFloat(id.x) * 360.0;
-
-//    let location = vec2<i32>(agents[id.x].position);
-//    let color = vec4<f32>(1.0);
-//
-//    textureStore(texture, location, color);
 }
 
 @compute @workgroup_size(16, 1, 1)
