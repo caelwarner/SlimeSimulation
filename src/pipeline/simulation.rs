@@ -57,8 +57,8 @@ impl SubShaderPipeline for SimulationShaderPipeline {
             .map(|_| {
                 Agent {
                     position: [
-                        self.context.window_size.0 as f32 / 2.0,
-                        self.context.window_size.1 as f32 / 2.0,
+                        self.context.texture_size.0 as f32 / 2.0,
+                        self.context.texture_size.1 as f32 / 2.0,
                     ],
                     angle: rng.gen::<f32>() * PI * 2.0,
                     _padding: 0,
@@ -81,8 +81,8 @@ impl SubShaderPipeline for SimulationShaderPipeline {
         gpu_images: &RenderAssets<Image>,
         output_image: Option<&Handle<Image>>,
     ) {
-        self.bind_group =
-            Some(render_device.create_bind_group(
+        self.bind_group = Some(
+            render_device.create_bind_group(
                 &BindGroupDescriptor {
                     label: Some("simulation bind group"),
                     layout: &self.bind_group_layout,
@@ -90,7 +90,7 @@ impl SubShaderPipeline for SimulationShaderPipeline {
                         BindGroupEntry {
                             binding: 0,
                             resource: BindingResource::TextureView(
-                                &gpu_images[output_image.unwrap()].texture_view
+                                &gpu_images[output_image.unwrap()].texture_view,
                             ),
                         },
                         BindGroupEntry {
@@ -133,7 +133,7 @@ fn get_bind_group_layout(render_device: &RenderDevice, context: &SimulationPipel
                         binding: 0,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
+                            access: StorageTextureAccess::WriteOnly,
                             format: TextureFormat::Rgba8Unorm,
                             view_dimension: TextureViewDimension::D2,
                         },
@@ -177,7 +177,7 @@ fn get_compute_pipeline_id(
 #[derive(Clone)]
 pub struct SimulationPipelineContext {
     pub num_agents: u32,
-    pub window_size: (u32, u32),
+    pub texture_size: (u32, u32),
 }
 
 #[repr(C)]

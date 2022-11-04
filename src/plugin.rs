@@ -7,6 +7,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, T
 use bevy::render::renderer::RenderDevice;
 
 use crate::pipeline::{MainShaderPipeline, PipelineOutputImage, ShaderPipelineNode};
+use crate::pipeline::fade::FadePipelineContext;
 use crate::pipeline::simulation::SimulationPipelineContext;
 use crate::SETTINGS;
 
@@ -23,7 +24,10 @@ impl Plugin for SlimeSimulationPlugin {
         render_app
             .insert_resource(SimulationPipelineContext {
                 num_agents: SETTINGS.num_agents,
-                window_size: SETTINGS.window_size,
+                texture_size: SETTINGS.texture_size,
+            })
+            .insert_resource(FadePipelineContext {
+                texture_size: SETTINGS.texture_size,
             })
             .init_resource::<MainShaderPipeline>()
             .add_system_to_stage(
@@ -46,8 +50,8 @@ impl Plugin for SlimeSimulationPlugin {
 fn create_output_image(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let mut image = Image::new_fill(
         Extent3d {
-            width: SETTINGS.window_size.0,
-            height: SETTINGS.window_size.1,
+            width: SETTINGS.texture_size.0,
+            height: SETTINGS.texture_size.1,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,

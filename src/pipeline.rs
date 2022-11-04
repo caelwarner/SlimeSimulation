@@ -7,18 +7,22 @@ use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
 use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderContext, RenderDevice};
 
+use crate::pipeline::fade::FadeShaderPipeline;
 use crate::pipeline::simulation::SimulationShaderPipeline;
 
+pub mod fade;
 pub mod simulation;
 
 pub struct MainShaderPipeline {
     simulation_pipeline: SimulationShaderPipeline,
+    fade_pipeline: FadeShaderPipeline,
 }
 
 impl FromWorld for MainShaderPipeline {
     fn from_world(world: &mut World) -> Self {
         let mut pipeline = Self {
             simulation_pipeline: SimulationShaderPipeline::new(world),
+            fade_pipeline: FadeShaderPipeline::new(world),
         };
 
         pipeline.init_data(world.resource::<RenderDevice>());
@@ -42,12 +46,19 @@ impl MainShaderPipeline {
             gpu_images.as_ref(),
             Some(output_image.0.borrow()),
         );
+
+        self.fade_pipeline.queue_bind_groups(
+            render_device.as_ref(),
+            gpu_images.as_ref(),
+            Some(output_image.0.borrow()),
+        );
     }
 
     fn run_shaders(&self, render_context: &mut RenderContext, world: &World) {
         let pipeline_cache = world.resource::<PipelineCache>();
 
         self.simulation_pipeline.run(render_context, pipeline_cache);
+        self.fade_pipeline.run(render_context, pipeline_cache);
     }
 }
 
