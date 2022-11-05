@@ -5,17 +5,17 @@ use bevy::core::{Pod, Zeroable};
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::*;
-use bevy::render::renderer::RenderDevice;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
 use rand::{Rng, thread_rng};
 
-use crate::{AppSettings, SETTINGS};
 use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline, WorkgroupSize};
+use crate::plugin::{PluginSettings, PluginTime};
+use crate::SETTINGS;
 
 pub struct SimulationShaderPipeline {
     bind_group_layout: BindGroupLayout,
     bind_group: Option<BindGroup>,
     pipeline: CachedComputePipelineId,
-    settings: AppSettings,
     agents: PipelineData<Vec<Agent>>,
     context: PipelineData<SimulationPipelineContext>,
 }
@@ -24,7 +24,7 @@ impl SimulationShaderPipeline {
     pub fn new(world: &mut World) -> Self {
         let bind_group_layout = get_bind_group_layout(
             world.resource::<RenderDevice>(),
-            &SETTINGS,
+            world.resource::<PluginSettings>(),
         );
 
         let shader = world.resource::<AssetServer>().load("shaders/simulation.wgsl");
@@ -39,7 +39,6 @@ impl SimulationShaderPipeline {
             ),
             bind_group_layout,
             bind_group: None,
-            settings: SETTINGS,
             agents: PipelineData::default(),
             context: PipelineData::default(),
         }
@@ -47,35 +46,27 @@ impl SimulationShaderPipeline {
 }
 
 impl SubShaderPipeline for SimulationShaderPipeline {
-    fn init_data(&mut self, render_device: &RenderDevice) {
+    fn init_data(&mut self, render_device: &RenderDevice, settings: &PluginSettings) {
         let mut rng = thread_rng();
 
-        self.context.data = Some(SimulationPipelineContext {
-            texture_size: [
-                self.settings.texture_size.0,
-                self.settings.texture_size.1,
-            ],
-        });
-
         self.context.buffer = Some(render_device
-            .create_buffer_with_data(
-                &BufferInitDescriptor {
-                    label: Some("simulation settings buffer"),
-                    contents: bevy::core::cast_slice(
-                        &[self.context.data
-                            .expect("context data to exist")]),
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
+            .create_buffer(
+                &BufferDescriptor {
+                    label: Some("simulation context uniform buffer"),
+                    size: std::mem::size_of::<SimulationPipelineContext>() as u64,
+                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
                 }
             )
         );
 
-        self.agents.data = Some((0..self.settings.num_agents)
+        self.agents.data = Some((0..settings.num_agents)
             .into_iter()
             .map(|_| {
                 Agent {
                     position: [
-                        self.settings.texture_size.0 as f32 / 2.0,
-                        self.settings.texture_size.1 as f32 / 2.0,
+                        SETTINGS.texture_size.0 as f32 / 2.0,
+                        SETTINGS.texture_size.1 as f32 / 2.0,
                     ],
                     angle: rng.gen::<f32>() * PI * 2.0,
                     _padding: 0,
@@ -93,6 +84,27 @@ impl SubShaderPipeline for SimulationShaderPipeline {
                     usage: BufferUsages::STORAGE,
                 }
             ));
+    }
+
+    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
+        self.context.data = Some(SimulationPipelineContext {
+            texture_size: [
+                SETTINGS.texture_size.0,
+                SETTINGS.texture_size.1,
+            ],
+            speed: settings.agent_speed,
+            delta_time: time.delta_time,
+            time: time.time,
+            _padding: [0, 0, 0],
+        });
+
+        render_queue.write_buffer(
+            self.context.buffer.as_ref().expect("context buffer to exist"),
+            0,
+            bevy::core::cast_slice(&[
+                self.context.data.expect("context data to exist")
+            ]),
+        );
     }
 
     fn queue_bind_groups(
@@ -140,16 +152,16 @@ impl SubShaderPipeline for SimulationShaderPipeline {
         self.bind_group.as_ref()
     }
 
-    fn get_workgroup_size(&self) -> WorkgroupSize {
+    fn get_workgroup_size(&self, settings: &PluginSettings) -> WorkgroupSize {
         WorkgroupSize {
-            x: self.settings.num_agents / 16,
+            x: settings.num_agents / 16,
             y: 1,
             z: 1,
         }
     }
 }
 
-fn get_bind_group_layout(render_device: &RenderDevice, settings: &AppSettings) -> BindGroupLayout {
+fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings) -> BindGroupLayout {
     render_device
         .create_bind_group_layout(
             &BindGroupLayoutDescriptor {
@@ -197,6 +209,10 @@ fn get_bind_group_layout(render_device: &RenderDevice, settings: &AppSettings) -
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
 struct SimulationPipelineContext {
     texture_size: [u32; 2],
+    speed: f32,
+    delta_time: f32,
+    time: f32,
+    _padding: [u32; 3],
 }
 
 

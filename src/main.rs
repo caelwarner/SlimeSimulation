@@ -3,7 +3,6 @@ extern crate core;
 use bevy::DefaultPlugins;
 use bevy::prelude::*;
 use bevy::window::WindowMode;
-use bevy_shader_utils::ShaderUtilsPlugin;
 
 use crate::pipeline::PipelineOutputImage;
 use crate::plugin::SlimeSimulationPlugin;
@@ -13,8 +12,7 @@ mod pipeline;
 
 const SETTINGS: AppSettings = AppSettings {
     window_size: (1920, 1080),
-    texture_size: (1280, 720),
-    num_agents: 100,
+    texture_size: (2560, 1440),
 };
 
 fn main() {
@@ -29,7 +27,6 @@ fn main() {
             ..default()
         })
         .add_plugins(DefaultPlugins)
-        .add_plugin(ShaderUtilsPlugin)
         .add_plugin(SlimeSimulationPlugin)
         .add_startup_system_to_stage(
             StartupStage::PostStartup,
@@ -58,5 +55,4 @@ fn setup(mut commands: Commands, output_image: Res<PipelineOutputImage>) {
 struct AppSettings {
     window_size: (u32, u32),
     texture_size: (u32, u32),
-    num_agents: u32,
 }

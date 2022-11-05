@@ -5,10 +5,11 @@ use bevy::render::extract_resource::ExtractResource;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
 use bevy::render::render_resource::*;
-use bevy::render::renderer::{RenderContext, RenderDevice};
+use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 
 use crate::pipeline::fade::FadeShaderPipeline;
 use crate::pipeline::simulation::SimulationShaderPipeline;
+use crate::plugin::{PluginSettings, PluginTime};
 
 pub mod fade;
 pub mod simulation;
@@ -26,15 +27,21 @@ impl FromWorld for MainShaderPipeline {
             ],
         };
 
-        pipeline.init_data(world.resource::<RenderDevice>());
+        pipeline.init_data(world.resource::<RenderDevice>(), world.resource::<PluginSettings>());
         pipeline
     }
 }
 
 impl MainShaderPipeline {
-    pub fn init_data(&mut self, render_device: &RenderDevice) {
+    pub fn init_data(&mut self, render_device: &RenderDevice, settings: &PluginSettings) {
         for sub_pipeline in &mut self.sub_pipelines {
-            sub_pipeline.init_data(render_device);
+            sub_pipeline.init_data(render_device, settings);
+        }
+    }
+
+    pub fn prepare_data(&mut self, render_queue: Res<RenderQueue>, settings: Res<PluginSettings>, time: Res<PluginTime>) {
+        for sub_pipeline in &mut self.sub_pipelines {
+            sub_pipeline.prepare_data(render_queue.as_ref(), settings.as_ref(), time.as_ref());
         }
     }
 
@@ -62,7 +69,7 @@ impl MainShaderPipeline {
                 pipeline_cache,
                 sub_pipeline.get_pipeline(),
                 sub_pipeline.get_bind_group(),
-                sub_pipeline.get_workgroup_size(),
+                sub_pipeline.get_workgroup_size(world.resource::<PluginSettings>()),
             )
         }
     }
@@ -114,12 +121,13 @@ fn get_compute_pipeline_id(
 }
 
 pub trait SubShaderPipeline: Send + Sync {
-    fn init_data(&mut self, _render_device: &RenderDevice) {}
+    fn init_data(&mut self, _render_device: &RenderDevice, _settings: &PluginSettings) {}
+    fn prepare_data(&mut self, _render_queue: &RenderQueue, _settings: &PluginSettings, _time: &PluginTime) {}
 
     fn queue_bind_groups(&mut self, render_device: &RenderDevice, gpu_images: &RenderAssets<Image>, output_image: Option<&Handle<Image>>);
     fn get_pipeline(&self) -> CachedComputePipelineId;
     fn get_bind_group(&self) -> Option<&BindGroup>;
-    fn get_workgroup_size(&self) -> WorkgroupSize;
+    fn get_workgroup_size(&self, settings: &PluginSettings) -> WorkgroupSize;
 }
 
 pub struct PipelineData<T> {

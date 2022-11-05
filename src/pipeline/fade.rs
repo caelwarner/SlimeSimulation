@@ -1,16 +1,18 @@
+use bevy::core::{Pod, Zeroable};
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::*;
-use bevy::render::renderer::RenderDevice;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
 
-use crate::{AppSettings, SETTINGS};
-use crate::pipeline::{get_compute_pipeline_id, SubShaderPipeline, WorkgroupSize};
+use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline, WorkgroupSize};
+use crate::plugin::{PluginSettings, PluginTime};
+use crate::SETTINGS;
 
 pub struct FadeShaderPipeline {
     bind_group_layout: BindGroupLayout,
     bind_group: Option<BindGroup>,
     pipeline: CachedComputePipelineId,
-    settings: AppSettings,
+    context: PipelineData<FadePipelineContext>,
 }
 
 impl FadeShaderPipeline {
@@ -31,12 +33,40 @@ impl FadeShaderPipeline {
             ),
             bind_group_layout,
             bind_group: None,
-            settings: SETTINGS,
+            context: PipelineData::default(),
         }
     }
 }
 
 impl SubShaderPipeline for FadeShaderPipeline {
+    fn init_data(&mut self, render_device: &RenderDevice, _settings: &PluginSettings) {
+        self.context.buffer = Some(render_device
+            .create_buffer(
+                &BufferDescriptor {
+                    label: Some("fade context uniform buffer"),
+                    size: std::mem::size_of::<FadePipelineContext>() as u64,
+                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                },
+            ),
+        );
+    }
+
+    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
+        self.context.data = Some(FadePipelineContext {
+            fade_rate: settings.fade_rate,
+            delta_time: time.delta_time,
+        });
+
+        render_queue.write_buffer(
+            self.context.buffer.as_ref().expect("context buffer to exist"),
+            0,
+            bevy::core::cast_slice(&[
+                self.context.data.expect("context data to exist")
+            ]),
+        );
+    }
+
     fn queue_bind_groups(
         &mut self,
         render_device: &RenderDevice,
@@ -55,6 +85,13 @@ impl SubShaderPipeline for FadeShaderPipeline {
                                 &gpu_images[output_image.unwrap()].texture_view,
                             ),
                         },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: self.context.buffer
+                                .as_ref()
+                                .expect("context buffer to exist")
+                                .as_entire_binding(),
+                        },
                     ],
                 },
             ),
@@ -69,10 +106,10 @@ impl SubShaderPipeline for FadeShaderPipeline {
         self.bind_group.as_ref()
     }
 
-    fn get_workgroup_size(&self) -> WorkgroupSize {
+    fn get_workgroup_size(&self, _settings: &PluginSettings) -> WorkgroupSize {
         WorkgroupSize {
-            x: self.settings.texture_size.0 / 8,
-            y: self.settings.texture_size.1 / 8,
+            x: SETTINGS.texture_size.0 / 8,
+            y: SETTINGS.texture_size.1 / 8,
             z: 1,
         }
     }
@@ -94,7 +131,24 @@ fn get_bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
                         },
                         count: None,
                     },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(std::mem::size_of::<FadePipelineContext>() as u64),
+                        },
+                        count: None,
+                    },
                 ],
             },
         )
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Default, Pod, Zeroable)]
+struct FadePipelineContext {
+    fade_rate: f32,
+    delta_time: f32,
 }

@@ -1,8 +1,11 @@
 @group(0) @binding(0)
 var texture: texture_storage_2d<rgba8unorm, write>;
 
-struct SimulationPipelineContext {
+struct Context {
     textureSize: vec2<u32>,
+    speed: f32,
+    deltaTime: f32,
+    @align(16) time: f32,
 }
 
 struct Agent {
@@ -11,7 +14,7 @@ struct Agent {
 }
 
 @group(0) @binding(1)
-var<uniform> context: SimulationPipelineContext;
+var<uniform> context: Context;
 
 @group(0) @binding(2)
 var<storage, read_write> agents: array<Agent>;
@@ -27,14 +30,16 @@ fn hash(value: u32) -> u32 {
     return state;
 }
 
-fn randomFloat(value: u32) -> f32 {
-    return f32(hash(value)) / 4294967295.0;
+fn scaleTo01(value: u32) -> f32 {
+    return f32(value) / 4294967295.0;
 }
 
 @compute @workgroup_size(16, 1, 1)
 fn update(@builtin(global_invocation_id) id: vec3<u32>) {
+    var random = hash(u32(agents[id.x].position.x) * context.textureSize.x + u32(agents[id.x].position.y) + hash(id.x + u32(context.time * 1000000.0)));
+
     let direction = vec2<f32>(cos(agents[id.x].angle), sin(agents[id.x].angle));
-    var newPosition = agents[id.x].position + direction * 0.5;
+    var newPosition = agents[id.x].position + direction * context.speed * context.deltaTime * 50.0;
 
     if (newPosition.x < 0.0 || newPosition.x >= f32(context.textureSize.x) || newPosition.y < 0.0 || newPosition.y >= f32(context.textureSize.y)) {
         newPosition = vec2<f32>(
@@ -42,7 +47,8 @@ fn update(@builtin(global_invocation_id) id: vec3<u32>) {
             min(f32(context.textureSize.y) - 1.0, max(1.0, newPosition.y)),
         );
 
-        agents[id.x].angle = randomFloat(u32(agents[id.x].position.x) * context.textureSize.x + u32(agents[id.x].position.y) + hash(id.x)) * 3.14159 * 2.0;
+        random = hash(random);
+        agents[id.x].angle = scaleTo01(random) * 3.1415 * 2.0;
     }
 
     agents[id.x].position = newPosition;
