@@ -109,7 +109,7 @@ impl SubShaderPipeline for SimulationShaderPipeline {
         &mut self,
         render_device: &RenderDevice,
         gpu_images: &RenderAssets<Image>,
-        output_image: Option<&Handle<Image>>,
+        images: &Vec<Handle<Image>>,
     ) {
         self.bind_group = Some(
             render_device.create_bind_group(
@@ -120,7 +120,7 @@ impl SubShaderPipeline for SimulationShaderPipeline {
                         BindGroupEntry {
                             binding: 0,
                             resource: BindingResource::TextureView(
-                                &gpu_images[output_image.unwrap()].texture_view,
+                                &gpu_images[images.get(0).unwrap()].texture_view,
                             ),
                         },
                         BindGroupEntry {
@@ -160,8 +160,6 @@ impl SubShaderPipeline for SimulationShaderPipeline {
 }
 
 fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings) -> BindGroupLayout {
-    println!("{}", std::mem::size_of::<SimulationPipelineContext>());
-
     render_device
         .create_bind_group_layout(
             &BindGroupLayoutDescriptor {

@@ -4,7 +4,7 @@ use bevy::DefaultPlugins;
 use bevy::prelude::*;
 use bevy::window::WindowMode;
 
-use crate::pipeline::PipelineOutputImage;
+use crate::pipeline::PipelineImages;
 use crate::plugin::SlimeSimulationPlugin;
 
 mod plugin;
@@ -35,7 +35,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, output_image: Res<PipelineOutputImage>) {
+fn setup(mut commands: Commands, images: Res<PipelineImages>) {
     commands.spawn_bundle(SpriteBundle {
         sprite: Sprite {
             custom_size: Some(Vec2::new(
@@ -44,7 +44,7 @@ fn setup(mut commands: Commands, output_image: Res<PipelineOutputImage>) {
             )),
             ..default()
         },
-        texture: output_image.0.clone(),
+        texture: images.0.last().cloned().unwrap(),
         ..default()
     });
 

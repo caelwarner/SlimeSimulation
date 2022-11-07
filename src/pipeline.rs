@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
@@ -7,10 +7,12 @@ use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
 use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 
+use crate::pipeline::blur::BlurShaderPipeline;
 use crate::pipeline::fade::FadeShaderPipeline;
 use crate::pipeline::simulation::SimulationShaderPipeline;
 use crate::plugin::{PluginSettings, PluginTime};
 
+pub mod blur;
 pub mod fade;
 pub mod simulation;
 
@@ -24,6 +26,7 @@ impl FromWorld for MainShaderPipeline {
             sub_pipelines: vec![
                 Box::new(SimulationShaderPipeline::new(world)),
                 Box::new(FadeShaderPipeline::new(world)),
+                Box::new(BlurShaderPipeline::new(world)),
             ],
         };
 
@@ -49,13 +52,13 @@ impl MainShaderPipeline {
         &mut self,
         render_device: Res<RenderDevice>,
         gpu_images: Res<RenderAssets<Image>>,
-        output_image: Res<PipelineOutputImage>
+        images: Res<PipelineImages>,
     ) {
         for sub_pipeline in &mut self.sub_pipelines {
             sub_pipeline.queue_bind_groups(
                 render_device.as_ref(),
                 gpu_images.as_ref(),
-                Some(output_image.0.borrow()),
+                images.0.as_ref(),
             )
         }
     }
@@ -124,7 +127,7 @@ pub trait SubShaderPipeline: Send + Sync {
     fn init_data(&mut self, _render_device: &RenderDevice, _settings: &PluginSettings) {}
     fn prepare_data(&mut self, _render_queue: &RenderQueue, _settings: &PluginSettings, _time: &PluginTime) {}
 
-    fn queue_bind_groups(&mut self, render_device: &RenderDevice, gpu_images: &RenderAssets<Image>, output_image: Option<&Handle<Image>>);
+    fn queue_bind_groups(&mut self, render_device: &RenderDevice, gpu_images: &RenderAssets<Image>, images: &Vec<Handle<Image>>);
     fn get_pipeline(&self) -> CachedComputePipelineId;
     fn get_bind_group(&self) -> Option<&BindGroup>;
     fn get_workgroup_size(&self, settings: &PluginSettings) -> WorkgroupSize;
@@ -145,7 +148,7 @@ impl<T> Default for PipelineData<T> {
 }
 
 #[derive(Clone, Deref, ExtractResource)]
-pub struct PipelineOutputImage(pub Handle<Image>);
+pub struct PipelineImages(pub Vec<Handle<Image>>);
 
 #[derive(Default)]
 pub struct ShaderPipelineNode;

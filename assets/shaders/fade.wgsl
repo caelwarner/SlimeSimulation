@@ -1,12 +1,12 @@
-@group(0) @binding(0)
-var texture: texture_storage_2d<rgba8unorm, read_write>;
-
 struct Context {
     pause: u32,
     fadeRate: f32,
     deltaTime: f32,
     hasTrails: u32,
 }
+
+@group(0) @binding(0)
+var texture: texture_storage_2d<rgba8unorm, read_write>;
 
 @group(0) @binding(1)
 var<uniform> context: Context;

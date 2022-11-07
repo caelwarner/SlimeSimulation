@@ -8,7 +8,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, T
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy_inspector_egui::{Inspectable, InspectorPlugin};
 
-use crate::pipeline::{MainShaderPipeline, PipelineOutputImage, ShaderPipelineNode};
+use crate::pipeline::{MainShaderPipeline, PipelineImages, ShaderPipelineNode};
 use crate::SETTINGS;
 
 pub struct SlimeSimulationPlugin;
@@ -16,9 +16,9 @@ pub struct SlimeSimulationPlugin;
 impl Plugin for SlimeSimulationPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_startup_system(create_output_image)
+            .add_startup_system(create_images)
             .add_plugin(InspectorPlugin::<PluginSettings>::new())
-            .add_plugin(ExtractResourcePlugin::<PipelineOutputImage>::default())
+            .add_plugin(ExtractResourcePlugin::<PipelineImages>::default())
             .add_plugin(ExtractResourcePlugin::<PluginSettings>::default())
             .add_plugin(ExtractResourcePlugin::<PluginTime>::default());
 
@@ -48,30 +48,36 @@ impl Plugin for SlimeSimulationPlugin {
     }
 }
 
-fn create_output_image(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let mut image = Image::new_fill(
-        Extent3d {
-            width: SETTINGS.texture_size.0,
-            height: SETTINGS.texture_size.1,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &[0, 0, 0, 255],
-        TextureFormat::Rgba8Unorm,
-    );
+fn create_images(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    let mut pipeline_images: Vec<Handle<Image>> = Vec::new();
 
-    image.texture_descriptor.usage = TextureUsages::COPY_DST
-        | TextureUsages::STORAGE_BINDING
-        | TextureUsages::TEXTURE_BINDING;
+    for _ in 0..2 {
+        let mut image = Image::new_fill(
+            Extent3d {
+                width: SETTINGS.texture_size.0,
+                height: SETTINGS.texture_size.1,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            &[0, 0, 0, 255],
+            TextureFormat::Rgba8Unorm,
+        );
 
-    commands.insert_resource(PipelineOutputImage(images.add(image)));
+        image.texture_descriptor.usage = TextureUsages::COPY_DST
+            | TextureUsages::STORAGE_BINDING
+            | TextureUsages::TEXTURE_BINDING;
+
+        pipeline_images.push(images.add(image));
+    }
+
+    commands.insert_resource(PipelineImages(pipeline_images));
 }
 
 fn queue_bind_groups(
     mut pipeline: ResMut<MainShaderPipeline>,
     render_device: Res<RenderDevice>,
     gpu_images: Res<RenderAssets<Image>>,
-    output_image: Res<PipelineOutputImage>,
+    output_image: Res<PipelineImages>,
 ) {
     pipeline.queue_bind_groups(render_device, gpu_images, output_image);
 }
@@ -94,6 +100,8 @@ pub struct PluginSettings {
     pub has_trails: bool,
     #[inspectable(min = 0.0, max = 5.0, speed = 0.005)]
     pub fade_rate: f32,
+    #[inspectable(min = 0, max = 5)]
+    pub blur_radius: u32,
 }
 
 impl FromWorld for PluginSettings {
@@ -104,6 +112,7 @@ impl FromWorld for PluginSettings {
             agent_speed: 1.0,
             has_trails: true,
             fade_rate: 2.0,
+            blur_radius: 1,
         }
     }
 }

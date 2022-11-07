@@ -1,6 +1,3 @@
-@group(0) @binding(0)
-var texture: texture_storage_2d<rgba8unorm, write>;
-
 struct Context {
     pause: u32,
     width: u32,
@@ -14,6 +11,9 @@ struct Agent {
     position: vec2<f32>,
     @align(8) angle: f32,
 }
+
+@group(0) @binding(0)
+var texture: texture_storage_2d<rgba8unorm, write>;
 
 @group(0) @binding(1)
 var<uniform> context: Context;
