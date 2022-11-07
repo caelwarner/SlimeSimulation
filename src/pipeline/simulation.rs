@@ -88,14 +88,12 @@ impl SubShaderPipeline for SimulationShaderPipeline {
 
     fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
         self.context.data = Some(SimulationPipelineContext {
-            texture_size: [
-                SETTINGS.texture_size.0,
-                SETTINGS.texture_size.1,
-            ],
+            pause: if settings.pause { 1 } else { 0 },
+            width: SETTINGS.texture_size.0,
+            height: SETTINGS.texture_size.1,
             speed: settings.agent_speed,
             delta_time: time.delta_time,
             time: time.time,
-            _padding: [0, 0, 0],
         });
 
         render_queue.write_buffer(
@@ -162,6 +160,8 @@ impl SubShaderPipeline for SimulationShaderPipeline {
 }
 
 fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings) -> BindGroupLayout {
+    println!("{}", std::mem::size_of::<SimulationPipelineContext>());
+
     render_device
         .create_bind_group_layout(
             &BindGroupLayoutDescriptor {
@@ -208,11 +208,12 @@ fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
 struct SimulationPipelineContext {
-    texture_size: [u32; 2],
+    pause: u32,
+    width: u32,
+    height: u32,
     speed: f32,
     delta_time: f32,
     time: f32,
-    _padding: [u32; 3],
 }
 
 

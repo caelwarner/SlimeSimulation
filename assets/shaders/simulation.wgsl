@@ -2,10 +2,12 @@
 var texture: texture_storage_2d<rgba8unorm, write>;
 
 struct Context {
-    textureSize: vec2<u32>,
+    pause: u32,
+    width: u32,
+    height: u32,
     speed: f32,
     deltaTime: f32,
-    @align(16) time: f32,
+    time: f32,
 }
 
 struct Agent {
@@ -36,15 +38,19 @@ fn scaleTo01(value: u32) -> f32 {
 
 @compute @workgroup_size(16, 1, 1)
 fn update(@builtin(global_invocation_id) id: vec3<u32>) {
-    var random = hash(u32(agents[id.x].position.x) * context.textureSize.x + u32(agents[id.x].position.y) + hash(id.x + u32(context.time * 1000000.0)));
+    if (context.pause == u32(1)) {
+        return;
+    }
+
+    var random = hash(u32(agents[id.x].position.x) * context.width + u32(agents[id.x].position.y) + hash(id.x + u32(context.time * 1000000.0)));
 
     let direction = vec2<f32>(cos(agents[id.x].angle), sin(agents[id.x].angle));
     var newPosition = agents[id.x].position + direction * context.speed * context.deltaTime * 50.0;
 
-    if (newPosition.x < 0.0 || newPosition.x >= f32(context.textureSize.x) || newPosition.y < 0.0 || newPosition.y >= f32(context.textureSize.y)) {
+    if (newPosition.x < 0.0 || newPosition.x >= f32(context.width) || newPosition.y < 0.0 || newPosition.y >= f32(context.height)) {
         newPosition = vec2<f32>(
-            min(f32(context.textureSize.x) - 1.0, max(1.0, newPosition.x)),
-            min(f32(context.textureSize.y) - 1.0, max(1.0, newPosition.y)),
+            min(f32(context.width) - 1.0, max(1.0, newPosition.x)),
+            min(f32(context.height) - 1.0, max(1.0, newPosition.y)),
         );
 
         random = hash(random);

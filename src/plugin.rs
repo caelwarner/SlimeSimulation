@@ -87,9 +87,11 @@ fn prepare_data(
 
 #[derive(Clone, Inspectable, ExtractResource)]
 pub struct PluginSettings {
+    pub pause: bool,
     pub num_agents: u32,
     #[inspectable(min = 0.1, max = 5.0)]
     pub agent_speed: f32,
+    pub has_trails: bool,
     #[inspectable(min = 0.0, max = 5.0, speed = 0.005)]
     pub fade_rate: f32,
 }
@@ -97,9 +99,11 @@ pub struct PluginSettings {
 impl FromWorld for PluginSettings {
     fn from_world(_world: &mut World) -> Self {
         Self {
+            pause: true,
             num_agents: 1000000,
-            agent_speed: 0.5,
-            fade_rate: 0.05,
+            agent_speed: 1.0,
+            has_trails: true,
+            fade_rate: 2.0,
         }
     }
 }

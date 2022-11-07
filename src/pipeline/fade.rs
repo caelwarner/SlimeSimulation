@@ -54,8 +54,10 @@ impl SubShaderPipeline for FadeShaderPipeline {
 
     fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
         self.context.data = Some(FadePipelineContext {
+            pause: if settings.pause { 1 } else { 0 },
             fade_rate: settings.fade_rate,
             delta_time: time.delta_time,
+            has_trails: if settings.has_trails { 1 } else { 0 },
         });
 
         render_queue.write_buffer(
@@ -149,6 +151,8 @@ fn get_bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
 struct FadePipelineContext {
+    pause: u32,
     fade_rate: f32,
     delta_time: f32,
+    has_trails: u32,
 }
