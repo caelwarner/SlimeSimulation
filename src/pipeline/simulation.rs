@@ -63,12 +63,15 @@ impl SubShaderPipeline for SimulationShaderPipeline {
         self.agents.data = Some((0..settings.num_agents)
             .into_iter()
             .map(|_| {
+                let r = rng.gen::<f32>().sqrt() * 600.0;
+                let theta = rng.gen::<f32>() * PI * 2.0;
+
                 Agent {
                     position: [
-                        SETTINGS.texture_size.0 as f32 / 2.0,
-                        SETTINGS.texture_size.1 as f32 / 2.0,
+                        (SETTINGS.texture_size.0 as f32 / 2.0) + r * theta.cos(),
+                        (SETTINGS.texture_size.1 as f32 / 2.0) + r * theta.sin(),
                     ],
-                    angle: rng.gen::<f32>() * PI * 2.0,
+                    angle: theta + PI,
                     _padding: 0,
                 }
             }).collect::<Vec<Agent>>());
@@ -94,6 +97,10 @@ impl SubShaderPipeline for SimulationShaderPipeline {
             speed: settings.agent_speed,
             delta_time: time.delta_time,
             time: time.time,
+            sense_angle_offset: settings.agent_sense_angle_offset,
+            sense_distance: settings.agent_sense_distance,
+            turn_speed: settings.agent_turn_speed,
+            turn_randomness: settings.agent_turn_randomness,
         });
 
         render_queue.write_buffer(
@@ -120,18 +127,24 @@ impl SubShaderPipeline for SimulationShaderPipeline {
                         BindGroupEntry {
                             binding: 0,
                             resource: BindingResource::TextureView(
-                                &gpu_images[images.get(0).unwrap()].texture_view,
+                                &gpu_images[images.get(1).unwrap()].texture_view,
                             ),
                         },
                         BindGroupEntry {
                             binding: 1,
+                            resource: BindingResource::TextureView(
+                                &gpu_images[images.get(0).unwrap()].texture_view,
+                            ),
+                        },
+                        BindGroupEntry {
+                            binding: 2,
                             resource: self.context.buffer
                                 .as_ref()
                                 .expect("context buffer to exist")
                                 .as_entire_binding(),
                         },
                         BindGroupEntry {
-                            binding: 2,
+                            binding: 3,
                             resource: self.agents.buffer
                                 .as_ref()
                                 .expect("agents buffer to exist")
@@ -169,7 +182,7 @@ fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings
                         binding: 0,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::WriteOnly,
+                            access: StorageTextureAccess::ReadOnly,
                             format: TextureFormat::Rgba8Unorm,
                             view_dimension: TextureViewDimension::D2,
                         },
@@ -177,6 +190,16 @@ fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings
                     },
                     BindGroupLayoutEntry {
                         binding: 1,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::WriteOnly,
+                            format: TextureFormat::Rgba8Unorm,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
@@ -186,7 +209,7 @@ fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 2,
+                        binding: 3,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage {
@@ -212,6 +235,10 @@ struct SimulationPipelineContext {
     speed: f32,
     delta_time: f32,
     time: f32,
+    sense_angle_offset: f32,
+    sense_distance: f32,
+    turn_speed: f32,
+    turn_randomness: f32,
 }
 
 

@@ -5,6 +5,10 @@ struct Context {
     speed: f32,
     deltaTime: f32,
     time: f32,
+    senseAngleOffset: f32,
+    senseDistance: f32,
+    turnSpeed: f32,
+    turnRandomness: f32,
 }
 
 struct Agent {
@@ -13,12 +17,15 @@ struct Agent {
 }
 
 @group(0) @binding(0)
-var texture: texture_storage_2d<rgba8unorm, write>;
+var textureIn: texture_storage_2d<rgba8unorm, read>;
 
 @group(0) @binding(1)
-var<uniform> context: Context;
+var textureOut: texture_storage_2d<rgba8unorm, write>;
 
 @group(0) @binding(2)
+var<uniform> context: Context;
+
+@group(0) @binding(3)
 var<storage, read_write> agents: array<Agent>;
 
 fn hash(value: u32) -> u32 {
@@ -36,6 +43,22 @@ fn scaleTo01(value: u32) -> f32 {
     return f32(value) / 4294967295.0;
 }
 
+fn sense(id: u32, angleOffset: f32) -> f32 {
+    let angle = agents[id].angle + angleOffset;
+    let direction = vec2<f32>(cos(angle), sin(angle));
+    let sensePosition = vec2<i32>(agents[id].position + direction * context.senseDistance);
+
+    var sum = 0.0;
+
+    for (var x = -2; x <= 2; x++) {
+        for (var y = -2; y <= 2; y++) {
+            sum += textureLoad(textureIn, sensePosition)[3];
+        }
+    }
+
+    return sum;
+}
+
 @compute @workgroup_size(16, 1, 1)
 fn update(@builtin(global_invocation_id) id: vec3<u32>) {
     if (context.pause == u32(1)) {
@@ -43,6 +66,19 @@ fn update(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     var random = hash(u32(agents[id.x].position.x) * context.width + u32(agents[id.x].position.y) + hash(id.x + u32(context.time * 1000000.0)));
+
+    let senseLeft = sense(id.x, -context.senseAngleOffset);
+    let senseForward = sense(id.x, 0.0);
+    let senseRight = sense(id.x, context.senseAngleOffset);
+
+    let turnSpeed = context.turnSpeed * 3.1415 * 2.0 * 0.01;
+    let turnRandomness = scaleTo01(random);
+
+    if (senseLeft > senseForward && senseLeft > senseRight) {
+        agents[id.x].angle -= turnSpeed;
+    } else if (senseRight > senseForward && senseRight > senseLeft) {
+        agents[id.x].angle += turnSpeed;
+    }
 
     let direction = vec2<f32>(cos(agents[id.x].angle), sin(agents[id.x].angle));
     var newPosition = agents[id.x].position + direction * context.speed * context.deltaTime * 50.0;
@@ -63,5 +99,5 @@ fn update(@builtin(global_invocation_id) id: vec3<u32>) {
     let color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
 
     storageBarrier();
-    textureStore(texture, location, color);
+    textureStore(textureOut, location, color);
 }

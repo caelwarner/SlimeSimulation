@@ -97,10 +97,17 @@ pub struct PluginSettings {
     pub num_agents: u32,
     #[inspectable(min = 0.1, max = 5.0)]
     pub agent_speed: f32,
+    #[inspectable(min = 0.0, max = 2.0, speed = 0.05)]
+    pub agent_sense_angle_offset: f32,
+    #[inspectable(min = 0.0, max = 30.0)]
+    pub agent_sense_distance: f32,
+    pub agent_turn_speed: f32,
+    #[inspectable(min = 0.0, max = 2.0, speed = 0.05)]
+    pub agent_turn_randomness: f32,
     pub has_trails: bool,
     #[inspectable(min = 0.0, max = 5.0, speed = 0.005)]
     pub fade_rate: f32,
-    #[inspectable(min = 0, max = 5)]
+    #[inspectable(min = 0, max = 7)]
     pub blur_radius: u32,
 }
 
@@ -110,8 +117,12 @@ impl FromWorld for PluginSettings {
             pause: true,
             num_agents: 1000000,
             agent_speed: 1.0,
+            agent_sense_angle_offset: 0.5,
+            agent_sense_distance: 20.0,
+            agent_turn_speed: 1.0,
+            agent_turn_randomness: 0.1,
             has_trails: true,
-            fade_rate: 2.0,
+            fade_rate: 0.15,
             blur_radius: 1,
         }
     }

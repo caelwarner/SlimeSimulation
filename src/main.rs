@@ -11,7 +11,7 @@ mod plugin;
 mod pipeline;
 
 const SETTINGS: AppSettings = AppSettings {
-    window_size: (1920, 1080),
+    window_size: (2560, 1440),
     texture_size: (2560, 1440),
 };
 
