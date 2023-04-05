@@ -1,5 +1,5 @@
 struct Context {
-    pause: u32,
+    pause: u32, // align(4)
     width: u32,
     height: u32,
     speed: f32,
@@ -9,6 +9,9 @@ struct Context {
     senseDistance: f32,
     turnSpeed: f32,
     turnRandomness: f32,
+    r: f32,
+    g: f32,
+    b: f32,
 }
 
 struct Agent {
@@ -96,7 +99,7 @@ fn update(@builtin(global_invocation_id) id: vec3<u32>) {
     agents[id.x].position = newPosition;
 
     let location = vec2<i32>(agents[id.x].position);
-    let color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    let color = vec4<f32>(context.r, context.g, context.b, 1.0);
 
     storageBarrier();
     textureStore(textureOut, location, color);

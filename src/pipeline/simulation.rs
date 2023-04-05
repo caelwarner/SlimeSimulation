@@ -101,6 +101,9 @@ impl SubShaderPipeline for SimulationShaderPipeline {
             sense_distance: settings.agent_sense_distance,
             turn_speed: settings.agent_turn_speed,
             turn_randomness: settings.agent_turn_randomness,
+            r: settings.color.r(),
+            g: settings.color.g(),
+            b: settings.color.b(),
         });
 
         render_queue.write_buffer(
@@ -239,6 +242,9 @@ struct SimulationPipelineContext {
     sense_distance: f32,
     turn_speed: f32,
     turn_randomness: f32,
+    r: f32,
+    g: f32,
+    b: f32,
 }
 
 

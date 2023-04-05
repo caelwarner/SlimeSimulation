@@ -1,5 +1,6 @@
+use bevy::asset::Handle;
 use bevy::core::{Pod, Zeroable};
-use bevy::prelude::*;
+use bevy::prelude::{AssetServer, Image, World};
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
@@ -8,28 +9,28 @@ use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline, 
 use crate::plugin::{PluginSettings, PluginTime};
 use crate::SETTINGS;
 
-pub struct FadeShaderPipeline {
+pub struct RecolorShaderPipeline {
     bind_group_layout: BindGroupLayout,
     bind_group: Option<BindGroup>,
     pipeline: CachedComputePipelineId,
-    context: PipelineData<FadePipelineContext>,
+    context: PipelineData<RecolorPipelineContext>,
 }
 
-impl FadeShaderPipeline {
+impl RecolorShaderPipeline {
     pub fn new(world: &mut World) -> Self {
         let bind_group_layout = get_bind_group_layout(
             world.resource::<RenderDevice>(),
         );
 
-        let shader = world.resource::<AssetServer>().load("shaders/fade.wgsl");
+        let shader = world.resource::<AssetServer>().load("shaders/recolor.wgsl");
 
         Self {
             pipeline: get_compute_pipeline_id(
                 shader,
                 world.resource_mut::<PipelineCache>().as_mut(),
                 bind_group_layout.clone(),
-                "fade shader update".to_string(),
-                "fade".to_string(),
+                "recolor shader update".to_string(),
+                "recolor".to_string(),
             ),
             bind_group_layout,
             bind_group: None,
@@ -38,13 +39,13 @@ impl FadeShaderPipeline {
     }
 }
 
-impl SubShaderPipeline for FadeShaderPipeline {
+impl SubShaderPipeline for RecolorShaderPipeline {
     fn init_data(&mut self, render_device: &RenderDevice, _settings: &PluginSettings) {
         self.context.buffer = Some(render_device
             .create_buffer(
                 &BufferDescriptor {
-                    label: Some("fade context uniform buffer"),
-                    size: std::mem::size_of::<FadePipelineContext>() as u64,
+                    label: Some("recolor context uniform buffer"),
+                    size: std::mem::size_of::<RecolorPipelineContext>() as u64,
                     usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 },
@@ -52,12 +53,9 @@ impl SubShaderPipeline for FadeShaderPipeline {
         );
     }
 
-    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
-        self.context.data = Some(FadePipelineContext {
-            pause: if settings.pause { 1 } else { 0 },
-            fade_rate: settings.fade_rate,
-            delta_time: time.delta_time,
-            has_trails: if settings.has_trails { 1 } else { 0 },
+    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, _time: &PluginTime) {
+        self.context.data = Some(RecolorPipelineContext {
+            color: settings.color.as_rgba_f32(),
         });
 
         render_queue.write_buffer(
@@ -69,22 +67,17 @@ impl SubShaderPipeline for FadeShaderPipeline {
         );
     }
 
-    fn queue_bind_groups(
-        &mut self,
-        render_device: &RenderDevice,
-        gpu_images: &RenderAssets<Image>,
-        images: &Vec<Handle<Image>>,
-    ) {
+    fn queue_bind_groups(&mut self, render_device: &RenderDevice, gpu_images: &RenderAssets<Image>, images: &Vec<Handle<Image>>) {
         self.bind_group = Some(
             render_device.create_bind_group(
                 &BindGroupDescriptor {
-                    label: Some("fade bind group"),
+                    label: Some("recolor bind group"),
                     layout: &self.bind_group_layout,
                     entries: &[
                         BindGroupEntry {
                             binding: 0,
                             resource: BindingResource::TextureView(
-                                &gpu_images[images.get(0).unwrap()].texture_view,
+                                &gpu_images[images.get(1).unwrap()].texture_view,
                             ),
                         },
                         BindGroupEntry {
@@ -96,8 +89,8 @@ impl SubShaderPipeline for FadeShaderPipeline {
                         },
                     ],
                 },
-            ),
-        );
+            )
+        )
     }
 
     fn get_pipeline(&self) -> CachedComputePipelineId {
@@ -121,7 +114,7 @@ fn get_bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
     render_device
         .create_bind_group_layout(
             &BindGroupLayoutDescriptor {
-                label: Some("fade bind group layout"),
+                label: Some("recolor bind group layout"),
                 entries: &[
                     BindGroupLayoutEntry {
                         binding: 0,
@@ -139,7 +132,7 @@ fn get_bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(std::mem::size_of::<FadePipelineContext>() as u64),
+                            min_binding_size: BufferSize::new(std::mem::size_of::<RecolorPipelineContext>() as u64),
                         },
                         count: None,
                     },
@@ -150,9 +143,6 @@ fn get_bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
-struct FadePipelineContext {
-    pause: u32,
-    fade_rate: f32,
-    delta_time: f32,
-    has_trails: u32,
+struct RecolorPipelineContext {
+    color: [f32; 4],
 }

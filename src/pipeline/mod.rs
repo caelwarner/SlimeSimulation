@@ -9,11 +9,13 @@ use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 
 use crate::pipeline::blur::BlurShaderPipeline;
 use crate::pipeline::fade::FadeShaderPipeline;
+use crate::pipeline::recolor::RecolorShaderPipeline;
 use crate::pipeline::simulation::SimulationShaderPipeline;
 use crate::plugin::{PluginSettings, PluginTime};
 
 pub mod blur;
 pub mod fade;
+pub mod recolor;
 pub mod simulation;
 
 pub struct MainShaderPipeline {
@@ -27,6 +29,7 @@ impl FromWorld for MainShaderPipeline {
                 Box::new(SimulationShaderPipeline::new(world)),
                 Box::new(FadeShaderPipeline::new(world)),
                 Box::new(BlurShaderPipeline::new(world)),
+                Box::new(RecolorShaderPipeline::new(world)),
             ],
         };
 

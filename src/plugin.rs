@@ -59,7 +59,7 @@ fn create_images(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,
-            &[0, 0, 0, 255],
+            &[0, 0, 0, 0],
             TextureFormat::Rgba8Unorm,
         );
 
@@ -104,6 +104,7 @@ pub struct PluginSettings {
     pub agent_turn_speed: f32,
     #[inspectable(min = 0.0, max = 2.0, speed = 0.05)]
     pub agent_turn_randomness: f32,
+    pub color: Color,
     pub has_trails: bool,
     #[inspectable(min = 0.0, max = 5.0, speed = 0.005)]
     pub fade_rate: f32,
@@ -121,6 +122,7 @@ impl FromWorld for PluginSettings {
             agent_sense_distance: 20.0,
             agent_turn_speed: 1.0,
             agent_turn_randomness: 0.1,
+            color: Color::WHITE,
             has_trails: true,
             fade_rate: 0.15,
             blur_radius: 1,
