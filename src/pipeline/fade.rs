@@ -4,9 +4,9 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 
-use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline, WorkgroupSize};
-use crate::plugin::{PluginSettings, PluginTime};
-use crate::SETTINGS;
+use crate::AppConfig;
+use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline};
+use crate::plugin::{PluginTime, SimulationSettings};
 
 pub struct FadeShaderPipeline {
     bind_group_layout: BindGroupLayout,
@@ -39,7 +39,7 @@ impl FadeShaderPipeline {
 }
 
 impl SubShaderPipeline for FadeShaderPipeline {
-    fn init_data(&mut self, render_device: &RenderDevice, _settings: &PluginSettings) {
+    fn init_data(&mut self, render_device: &RenderDevice, _app_config: &AppConfig, _settings: &SimulationSettings) {
         self.context.buffer = Some(render_device
             .create_buffer(
                 &BufferDescriptor {
@@ -52,7 +52,7 @@ impl SubShaderPipeline for FadeShaderPipeline {
         );
     }
 
-    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
+    fn prepare_data(&mut self, render_queue: &RenderQueue, _app_config: &AppConfig, settings: &SimulationSettings, time: &PluginTime) {
         self.context.data = Some(FadePipelineContext {
             pause: if settings.pause { 1 } else { 0 },
             fade_rate: settings.fade_rate,
@@ -106,14 +106,6 @@ impl SubShaderPipeline for FadeShaderPipeline {
 
     fn get_bind_group(&self) -> Option<&BindGroup> {
         self.bind_group.as_ref()
-    }
-
-    fn get_workgroup_size(&self, _settings: &PluginSettings) -> WorkgroupSize {
-        WorkgroupSize {
-            x: SETTINGS.texture_size.0 / 8,
-            y: SETTINGS.texture_size.1 / 8,
-            z: 1,
-        }
     }
 }
 

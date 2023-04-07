@@ -7,7 +7,10 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.8.1"
-bytemuck = "1.12.2"
+bevy_embedded_assets = "0.4.0"
 bevy-inspector-egui = "0.13.0"
 bevy-inspector-egui-derive = "0.13.0"
+bytemuck = "1.12.2"
 rand = "0.8.5"
+serde = { version = "1.0.159", features = ["derive"] }
+toml = "0.7.3"

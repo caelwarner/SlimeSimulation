@@ -8,8 +8,8 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, T
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy_inspector_egui::{Inspectable, InspectorPlugin};
 
+use crate::AppConfig;
 use crate::pipeline::{MainShaderPipeline, PipelineImages, ShaderPipelineNode};
-use crate::SETTINGS;
 
 pub struct SlimeSimulationPlugin;
 
@@ -17,15 +17,17 @@ impl Plugin for SlimeSimulationPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_startup_system(create_images)
-            .add_plugin(InspectorPlugin::<PluginSettings>::new())
+            .add_plugin(InspectorPlugin::<SimulationSettings>::new())
             .add_plugin(ExtractResourcePlugin::<PipelineImages>::default())
-            .add_plugin(ExtractResourcePlugin::<PluginSettings>::default())
+            .add_plugin(ExtractResourcePlugin::<SimulationSettings>::default())
             .add_plugin(ExtractResourcePlugin::<PluginTime>::default());
 
+        let app_config = app.world.get_resource::<AppConfig>().cloned().unwrap();
         let render_app = app.sub_app_mut(RenderApp);
 
+        render_app.insert_resource(app_config);
         render_app
-            .init_resource::<PluginSettings>()
+            .init_resource::<SimulationSettings>()
             .init_resource::<MainShaderPipeline>()
             .add_system_to_stage(
                 RenderStage::Queue,
@@ -48,14 +50,14 @@ impl Plugin for SlimeSimulationPlugin {
     }
 }
 
-fn create_images(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn create_images(mut commands: Commands, app_config: Res<AppConfig>, mut images: ResMut<Assets<Image>>) {
     let mut pipeline_images: Vec<Handle<Image>> = Vec::new();
 
     for _ in 0..2 {
         let mut image = Image::new_fill(
             Extent3d {
-                width: SETTINGS.texture_size.0,
-                height: SETTINGS.texture_size.1,
+                width: app_config.texture.width,
+                height: app_config.texture.height,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,
@@ -85,14 +87,15 @@ fn queue_bind_groups(
 fn prepare_data(
     mut pipeline: ResMut<MainShaderPipeline>,
     render_queue: Res<RenderQueue>,
-    settings: Res<PluginSettings>,
+    app_config: Res<AppConfig>,
+    settings: Res<SimulationSettings>,
     time: Res<PluginTime>,
 ) {
-    pipeline.prepare_data(render_queue, settings, time);
+    pipeline.prepare_data(render_queue.as_ref(), app_config.as_ref(), settings.as_ref(), time.as_ref());
 }
 
 #[derive(Clone, Inspectable, ExtractResource)]
-pub struct PluginSettings {
+pub struct SimulationSettings {
     pub pause: bool,
     pub num_agents: u32,
     #[inspectable(min = 0.1, max = 5.0)]
@@ -112,7 +115,7 @@ pub struct PluginSettings {
     pub blur_radius: u32,
 }
 
-impl FromWorld for PluginSettings {
+impl FromWorld for SimulationSettings {
     fn from_world(_world: &mut World) -> Self {
         Self {
             pause: true,

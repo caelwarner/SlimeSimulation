@@ -7,11 +7,12 @@ use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
 use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 
+use crate::AppConfig;
 use crate::pipeline::blur::BlurShaderPipeline;
 use crate::pipeline::fade::FadeShaderPipeline;
 use crate::pipeline::recolor::RecolorShaderPipeline;
 use crate::pipeline::simulation::SimulationShaderPipeline;
-use crate::plugin::{PluginSettings, PluginTime};
+use crate::plugin::{PluginTime, SimulationSettings};
 
 pub mod blur;
 pub mod fade;
@@ -33,21 +34,26 @@ impl FromWorld for MainShaderPipeline {
             ],
         };
 
-        pipeline.init_data(world.resource::<RenderDevice>(), world.resource::<PluginSettings>());
+        pipeline.init_data(world.resource::<RenderDevice>(), world.resource::<AppConfig>(), world.resource::<SimulationSettings>());
         pipeline
     }
 }
 
 impl MainShaderPipeline {
-    pub fn init_data(&mut self, render_device: &RenderDevice, settings: &PluginSettings) {
+    pub fn init_data(&mut self, render_device: &RenderDevice, app_config: &AppConfig, settings: &SimulationSettings) {
         for sub_pipeline in &mut self.sub_pipelines {
-            sub_pipeline.init_data(render_device, settings);
+            sub_pipeline.init_data(render_device, app_config, settings);
         }
     }
 
-    pub fn prepare_data(&mut self, render_queue: Res<RenderQueue>, settings: Res<PluginSettings>, time: Res<PluginTime>) {
+    pub fn prepare_data(&mut self,
+        render_queue: &RenderQueue,
+        app_config: &AppConfig,
+        settings: &SimulationSettings,
+        time: &PluginTime,
+    ) {
         for sub_pipeline in &mut self.sub_pipelines {
-            sub_pipeline.prepare_data(render_queue.as_ref(), settings.as_ref(), time.as_ref());
+            sub_pipeline.prepare_data(render_queue, app_config, settings, time);
         }
     }
 
@@ -75,7 +81,7 @@ impl MainShaderPipeline {
                 pipeline_cache,
                 sub_pipeline.get_pipeline(),
                 sub_pipeline.get_bind_group(),
-                sub_pipeline.get_workgroup_size(world.resource::<PluginSettings>()),
+                sub_pipeline.get_workgroup_size(world.resource::<AppConfig>(), world.resource::<SimulationSettings>()),
             )
         }
     }
@@ -127,13 +133,20 @@ fn get_compute_pipeline_id(
 }
 
 pub trait SubShaderPipeline: Send + Sync {
-    fn init_data(&mut self, _render_device: &RenderDevice, _settings: &PluginSettings) {}
-    fn prepare_data(&mut self, _render_queue: &RenderQueue, _settings: &PluginSettings, _time: &PluginTime) {}
+    fn init_data(&mut self, _render_device: &RenderDevice, _app_config: &AppConfig, _settings: &SimulationSettings) {}
+    fn prepare_data(&mut self, _render_queue: &RenderQueue, _app_config: &AppConfig, _settings: &SimulationSettings, _time: &PluginTime) {}
 
     fn queue_bind_groups(&mut self, render_device: &RenderDevice, gpu_images: &RenderAssets<Image>, images: &Vec<Handle<Image>>);
     fn get_pipeline(&self) -> CachedComputePipelineId;
     fn get_bind_group(&self) -> Option<&BindGroup>;
-    fn get_workgroup_size(&self, settings: &PluginSettings) -> WorkgroupSize;
+
+    fn get_workgroup_size(&self, app_config: &AppConfig, _settings: &SimulationSettings) -> WorkgroupSize {
+        WorkgroupSize {
+            x: app_config.texture.width / 8,
+            y: app_config.texture.height / 8,
+            z: 1,
+        }
+    }
 }
 
 pub struct PipelineData<T> {

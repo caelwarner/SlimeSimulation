@@ -8,9 +8,9 @@ use bevy::render::render_resource::*;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use rand::{Rng, thread_rng};
 
+use crate::AppConfig;
 use crate::pipeline::{get_compute_pipeline_id, PipelineData, SubShaderPipeline, WorkgroupSize};
-use crate::plugin::{PluginSettings, PluginTime};
-use crate::SETTINGS;
+use crate::plugin::{PluginTime, SimulationSettings};
 
 pub struct SimulationShaderPipeline {
     bind_group_layout: BindGroupLayout,
@@ -24,7 +24,7 @@ impl SimulationShaderPipeline {
     pub fn new(world: &mut World) -> Self {
         let bind_group_layout = get_bind_group_layout(
             world.resource::<RenderDevice>(),
-            world.resource::<PluginSettings>(),
+            world.resource::<SimulationSettings>(),
         );
 
         let shader = world.resource::<AssetServer>().load("shaders/simulation.wgsl");
@@ -46,7 +46,7 @@ impl SimulationShaderPipeline {
 }
 
 impl SubShaderPipeline for SimulationShaderPipeline {
-    fn init_data(&mut self, render_device: &RenderDevice, settings: &PluginSettings) {
+    fn init_data(&mut self, render_device: &RenderDevice, app_config: &AppConfig, settings: &SimulationSettings) {
         let mut rng = thread_rng();
 
         self.context.buffer = Some(render_device
@@ -68,8 +68,8 @@ impl SubShaderPipeline for SimulationShaderPipeline {
 
                 Agent {
                     position: [
-                        (SETTINGS.texture_size.0 as f32 / 2.0) + r * theta.cos(),
-                        (SETTINGS.texture_size.1 as f32 / 2.0) + r * theta.sin(),
+                        (app_config.texture.width as f32 / 2.0) + r * theta.cos(),
+                        (app_config.texture.height as f32 / 2.0) + r * theta.sin(),
                     ],
                     angle: theta + PI,
                     _padding: 0,
@@ -89,11 +89,11 @@ impl SubShaderPipeline for SimulationShaderPipeline {
             ));
     }
 
-    fn prepare_data(&mut self, render_queue: &RenderQueue, settings: &PluginSettings, time: &PluginTime) {
+    fn prepare_data(&mut self, render_queue: &RenderQueue, app_config: &AppConfig, settings: &SimulationSettings, time: &PluginTime) {
         self.context.data = Some(SimulationPipelineContext {
             pause: if settings.pause { 1 } else { 0 },
-            width: SETTINGS.texture_size.0,
-            height: SETTINGS.texture_size.1,
+            width: app_config.texture.width,
+            height: app_config.texture.height,
             speed: settings.agent_speed,
             delta_time: time.delta_time,
             time: time.time,
@@ -101,9 +101,6 @@ impl SubShaderPipeline for SimulationShaderPipeline {
             sense_distance: settings.agent_sense_distance,
             turn_speed: settings.agent_turn_speed,
             turn_randomness: settings.agent_turn_randomness,
-            r: settings.color.r(),
-            g: settings.color.g(),
-            b: settings.color.b(),
         });
 
         render_queue.write_buffer(
@@ -166,7 +163,7 @@ impl SubShaderPipeline for SimulationShaderPipeline {
         self.bind_group.as_ref()
     }
 
-    fn get_workgroup_size(&self, settings: &PluginSettings) -> WorkgroupSize {
+    fn get_workgroup_size(&self, _app_config: &AppConfig, settings: &SimulationSettings) -> WorkgroupSize {
         WorkgroupSize {
             x: settings.num_agents / 16,
             y: 1,
@@ -175,7 +172,7 @@ impl SubShaderPipeline for SimulationShaderPipeline {
     }
 }
 
-fn get_bind_group_layout(render_device: &RenderDevice, settings: &PluginSettings) -> BindGroupLayout {
+fn get_bind_group_layout(render_device: &RenderDevice, settings: &SimulationSettings) -> BindGroupLayout {
     render_device
         .create_bind_group_layout(
             &BindGroupLayoutDescriptor {
@@ -242,9 +239,6 @@ struct SimulationPipelineContext {
     sense_distance: f32,
     turn_speed: f32,
     turn_randomness: f32,
-    r: f32,
-    g: f32,
-    b: f32,
 }
 
 

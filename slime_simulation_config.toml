@@ -1,0 +1,11 @@
+[window]
+width = 1280
+height = 720
+fullscreen = false
+resizable = false
+vsync = true
+override_scale_factor = false
+
+[texture]
+width = 2560
+height = 1440
