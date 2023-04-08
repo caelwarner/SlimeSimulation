@@ -1,12 +1,13 @@
 use bevy::prelude::*;
-use bevy::render::{RenderApp, RenderStage};
+use bevy::render::{RenderApp, RenderSet};
 use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use bevy::render::main_graph::node::CAMERA_DRIVER;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::RenderGraph;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
-use bevy_inspector_egui::{Inspectable, InspectorPlugin};
+use bevy_inspector_egui::prelude::*;
+use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 
 use crate::AppConfig;
 use crate::pipeline::{MainShaderPipeline, PipelineImages, ShaderPipelineNode};
@@ -16,27 +17,23 @@ pub struct SlimeSimulationPlugin;
 impl Plugin for SlimeSimulationPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_startup_system(create_images)
-            .add_plugin(InspectorPlugin::<SimulationSettings>::new())
-            .add_plugin(ExtractResourcePlugin::<PipelineImages>::default())
+            .init_resource::<SimulationSettings>()
+            .register_type::<SimulationSettings>()
+            .add_plugin(ResourceInspectorPlugin::<SimulationSettings>::default())
             .add_plugin(ExtractResourcePlugin::<SimulationSettings>::default())
-            .add_plugin(ExtractResourcePlugin::<PluginTime>::default());
+            .add_plugin(ExtractResourcePlugin::<PipelineImages>::default())
+            .add_plugin(ExtractResourcePlugin::<PluginTime>::default())
+            .add_startup_system(create_images);
 
         let app_config = app.world.get_resource::<AppConfig>().cloned().unwrap();
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.insert_resource(app_config);
         render_app
+            .insert_resource(app_config)
             .init_resource::<SimulationSettings>()
             .init_resource::<MainShaderPipeline>()
-            .add_system_to_stage(
-                RenderStage::Queue,
-                queue_bind_groups,
-            )
-            .add_system_to_stage(
-                RenderStage::Prepare,
-                prepare_data,
-            );
+            .add_system(queue_bind_groups.in_set(RenderSet::Queue))
+            .add_system(prepare_data.in_set(RenderSet::Prepare));
 
         let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
         render_graph.add_node(
@@ -46,7 +43,7 @@ impl Plugin for SlimeSimulationPlugin {
         render_graph.add_node_edge(
             "simulation",
             CAMERA_DRIVER,
-        ).unwrap();
+        );
     }
 }
 
@@ -94,29 +91,30 @@ fn prepare_data(
     pipeline.prepare_data(render_queue.as_ref(), app_config.as_ref(), settings.as_ref(), time.as_ref());
 }
 
-#[derive(Clone, Inspectable, ExtractResource)]
+#[derive(Clone, ExtractResource, InspectorOptions, Reflect, Resource)]
+#[reflect(InspectorOptions, Resource)]
 pub struct SimulationSettings {
     pub pause: bool,
     pub num_agents: u32,
-    #[inspectable(min = 0.1, max = 5.0)]
+    #[inspector(min = 0.1, max = 5.0)]
     pub agent_speed: f32,
-    #[inspectable(min = 0.0, max = 2.0, speed = 0.05)]
+    #[inspector(min = 0.0, max = 2.0, speed = 0.05)]
     pub agent_sense_angle_offset: f32,
-    #[inspectable(min = 0.0, max = 30.0)]
+    #[inspector(min = 0.0, max = 30.0)]
     pub agent_sense_distance: f32,
     pub agent_turn_speed: f32,
-    #[inspectable(min = 0.0, max = 2.0, speed = 0.05)]
+    #[inspector(min = 0.0, max = 2.0, speed = 0.05)]
     pub agent_turn_randomness: f32,
     pub color: Color,
     pub has_trails: bool,
-    #[inspectable(min = 0.0, max = 5.0, speed = 0.005)]
+    #[inspector(min = 0.0, max = 5.0, speed = 0.005)]
     pub fade_rate: f32,
-    #[inspectable(min = 0, max = 7)]
+    #[inspector(min = 0, max = 7)]
     pub blur_radius: u32,
 }
 
-impl FromWorld for SimulationSettings {
-    fn from_world(_world: &mut World) -> Self {
+impl Default for SimulationSettings {
+    fn default() -> Self {
         Self {
             pause: true,
             num_agents: 1000000,
@@ -133,6 +131,7 @@ impl FromWorld for SimulationSettings {
     }
 }
 
+#[derive(Resource)]
 pub struct PluginTime {
     pub delta_time: f32,
     pub time: f32,
@@ -144,7 +143,7 @@ impl ExtractResource for PluginTime {
     fn extract_resource(source: &Self::Source) -> Self {
         Self {
             delta_time: source.delta_seconds_f64() as f32,
-            time: source.seconds_since_startup() as f32,
+            time: source.elapsed_seconds_f64() as f32,
         }
     }
 }

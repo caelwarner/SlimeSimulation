@@ -19,6 +19,7 @@ pub mod fade;
 pub mod recolor;
 pub mod simulation;
 
+#[derive(Resource)]
 pub struct MainShaderPipeline {
     sub_pipelines: Vec<Box<dyn SubShaderPipeline>>,
 }
@@ -95,7 +96,8 @@ fn run_shader(
     workgroup_size: WorkgroupSize,
 ) {
     if let CachedPipelineState::Ok(_) = pipeline_cache.get_compute_pipeline_state(pipeline) {
-        let mut compute_pass = render_context.command_encoder
+        let mut compute_pass = render_context
+            .command_encoder()
             .begin_compute_pass(&ComputePassDescriptor::default());
 
         compute_pass.set_bind_group(0, bind_group.expect("bind group to exist"), &[]);
@@ -124,7 +126,8 @@ fn get_compute_pipeline_id(
         .queue_compute_pipeline(
             ComputePipelineDescriptor {
                 label: Some(Cow::from(label)),
-                layout: Some(vec![bind_group_layout]),
+                layout: vec![bind_group_layout],
+                push_constant_ranges: vec![],
                 shader,
                 shader_defs: vec![],
                 entry_point: Cow::from(entry_point),
@@ -163,7 +166,7 @@ impl<T> Default for PipelineData<T> {
     }
 }
 
-#[derive(Clone, Deref, ExtractResource)]
+#[derive(Clone, Deref, ExtractResource, Resource)]
 pub struct PipelineImages(pub Vec<Handle<Image>>);
 
 #[derive(Default)]
